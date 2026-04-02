@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>人力工時統計工具</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC",
+          "Microsoft JhengHei", sans-serif;
+        margin: 20px;
+        color: #111;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 0 0 14px 0;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 10px 0;
+      }
+      label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      input[type="number"],
+      input[type="month"],
+      input[type="date"] {
+        padding: 8px;
+        font-size: 14px;
+      }
+      button {
+        padding: 8px 12px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button.btn-danger {
+        border: 1px solid #c62828;
+        color: #b71c1c;
+        background: #fff;
+      }
+      button.btn-danger:hover {
+        background: #ffebee;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+      }
+      table.calendar-table {
+        table-layout: fixed;
+      }
+      /* 每日 % 輸入：單欄滿寬，離開欄位時自動儲存 */
+      input.percent-input-cell {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background: #f6f6f6;
+      }
+      .summary {
+        margin-top: 16px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      .muted {
+        color: #666;
+      }
+      .today {
+        background: #fff3cd;
+      }
+      tr.row-holiday {
+        background: #e8eaf6;
+        color: #3949ab;
+      }
+      tr.row-holiday td {
+        border-color: #c5cae9;
+      }
+      tr.row-weekend {
+        background: #f0f0f0;
+        color: #555;
+      }
+      tr.row-weekend td {
+        border-color: #e0e0e0;
+      }
+      .msg {
+        margin-top: 12px;
+        color: #d00;
+        white-space: pre-wrap;
+      }
+      .msg.success {
+        color: #0a7;
+      }
+      .project-tabs-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+      }
+      .project-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+      button.project-tab {
+        padding: 6px 12px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        background: #fafafa;
+        border-radius: 6px;
+      }
+      button.project-tab:hover {
+        background: #eee;
+      }
+      button.project-tab.active {
+        border-color: #1565c0;
+        background: #e3f2fd;
+        font-weight: 600;
+      }
+      button.project-tab-add {
+        border-style: dashed;
+        color: #1565c0;
+      }
+      button.tab-action {
+        font-size: 13px;
+        padding: 6px 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>人力工時統計工具</h1>
+
+    <div id="projectTabsBar" class="project-tabs-bar">
+      <span class="muted" style="margin-right: 4px">專案／方案：</span>
+      <div id="projectTabs" class="project-tabs"></div>
+    </div>
+
+    <div class="row">
+      <label>
+        月份
+        <input id="ymInput" type="month" />
+      </label>
+      <label>
+        本月總%數
+        <input id="totalPercentInput" type="number" step="0.1" min="0" />
+      </label>
+      <button id="saveTotalBtn">保存本月總%數</button>
+      <button id="rebuildBtn">重建工作天</button>
+      <button id="clearMonthBtn" type="button" class="btn-danger">
+        清除本月工時資料
+      </button>
+    </div>
+
+    <div class="row">
+      <div class="summary">
+        <div><b>本月工作天數：</b><span id="workDaysCount">-</span></div>
+        <div>
+          <b>本月額度（總%×工作天）：</b><span id="monthlyPoolTotal">-</span>
+        </div>
+        <div><b>本月已填天數：</b><span id="filledDaysCount">-</span></div>
+        <div><b>已用總%：</b><span id="usedTotalPercent">-</span></div>
+        <div><b>已用佔額度%：</b><span id="usedBudgetPercent">-</span></div>
+        <div><b>已填日均%：</b><span id="usedAveragePercent">-</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <h2 style="font-size: 16px; margin: 12px 0 0 0">
+        本月日曆（含例假日六日與特殊假日）
+      </h2>
+    </div>
+
+    <div id="tableWrap"></div>
+
+    <div class="row" style="margin-top: 18px">
+      <h2 style="font-size: 16px; margin: 0 0 10px 0">休假日管理</h2>
+      <div class="row" style="margin: 0">
+        <label>
+          休假日
+          <input id="holidayDateInput" type="date" />
+        </label>
+        <label>
+          標籤（可選）
+          <input id="holidayLabelInput" type="text" style="padding: 8px; font-size: 14px" />
+        </label>
+        <button id="addHolidayBtn">新增休假日</button>
+        <span class="muted" aria-hidden="true">｜</span>
+        <label>
+          年度（國定）
+          <input
+            id="twHolidayYearInput"
+            type="number"
+            min="1990"
+            max="2100"
+            step="1"
+            style="padding: 8px; width: 88px"
+          />
+        </label>
+        <button id="importTwPublicBtn" type="button">套用台灣國定假日</button>
+      </div>
+      <p class="muted" style="margin: 6px 0 0 0; font-size: 13px">
+        台灣國定：匯入內建曆法之 public 假日（僅影響<strong>目前專案</strong>）。
+      </p>
+    </div>
+
+    <div id="holidaysWrap" class="muted">（尚未載入）</div>
+
+    <div id="msg" class="msg"></div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+

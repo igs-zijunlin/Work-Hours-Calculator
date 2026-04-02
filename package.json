@@ -1,0 +1,11 @@
+{
+  "name": "worktime-percent-tool",
+  "private": true,
+  "version": "0.1.0",
+  "description": "本機網頁工具：計算人力工時（以百分比為基礎）並用 SQLite 持久化",
+  "scripts": {
+    "dev": "npm --prefix server run dev",
+    "start": "npm --prefix server run start"
+  }
+}
+
